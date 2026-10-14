@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>五年级设计与工艺 - 植物大战僵尸复习大作战</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+        body {
+            background-color: #1b2a47;
+            font-family: 'PingFang SC', 'Microsoft YaHei', sans-serif;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 600px;
+            background: #2c3e50;
+            border-radius: 12px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+        .header {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            padding: 12px 20px;
+            background: #16a085;
+            font-size: 16px;
+            font-weight: bold;
+        }
+        canvas {
+            background-color: #27ae60;
+            display: block;
+            width: 100%;
+            max-width: 600px;
+            height: auto;
+        }
+        .controls {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            padding: 10px;
+            background: #34495e;
+        }
+        .action-btn {
+            background: #f1c40f;
+            color: #2c3e50;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 4px #d35400;
+        }
+        .action-btn:active {
+            transform: translateY(2px);
+            box-shadow: 0 2px #d35400;
+        }
+
+        /* 答题弹窗 */
+        .modal {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.92);
+            padding: 20px;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+        .modal h3 {
+            color: #f39c12;
+            margin-bottom: 15px;
+            font-size: 18px;
+            line-height: 1.4;
+            text-align: center;
+        }
+        .options-grid {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .option-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 15px;
+            border-radius: 6px;
+            font-size: 15px;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .option-btn:hover { background: #2980b9; }
+        .feedback {
+            margin-top: 15px;
+            font-size: 16px;
+            font-weight: bold;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+
+<div id="game-container">
+    <div class="header">
+        <div>阳光/积分: <span id="score">0</span></div>
+        <div>关卡: <span id="level">1</span>/30</div>
+    </div>
+    
+    <canvas id="gameCanvas" width="600" height="350"></canvas>
+
+    <div class="controls">
+        <button class="action-btn" onclick="triggerQuiz()">☀️ 答题收集阳光召唤植物</button>
+    </div>
+
+    <!-- 答题弹窗 -->
+    <div id="quizModal" class="modal">
+        <h3 id="questionText">题目加载中...</h3>
+        <div id="optionsContainer" class="options-grid"></div>
+        <div id="feedbackText" class="feedback"></div>
+    </div>
+</div>
+
+<script>
+// ===== 30道五年级RBT课程标准题目（由易到难） =====
+const questions = [
+    // 单元1：手缝工具与基本针法 (1-6)
+    { q: "1. 拆线器（Ripper）在手缝工艺中的主要用途是什么？", options: ["A. 缝合布料", "B. 拆除缝错的线迹和剪开扣眼", "C. 裁剪大块布料", "D. 测量布料长度"], a: 1 },
+    { q: "2. 以下哪种针法通常用于暂时的固定，且线迹较疏长？", options: ["A. 回针缝（Jahitan Jelujur Halus）", "B. 疏缝（Jahitan Jelujur Kasar）", "C. 锁边缝（Jahitan Insang Pari）", "D. 暗针缝"], a: 1 },
+    { q: "3. 缝制衣服边缘或防止布料脱线时，最常使用的是哪种针法？", options: ["A. 疏缝", "B. 锁边缝（Jahitan Insang Pari）", "C. 平针缝", "D. 交叉缝"], a: 1 },
+    { q: "4. “回针缝（Jahitan Kelem stitches/Backstitch）”的主要特点是什么？", options: ["A. 非常牢固，效果类似于机缝", "B. 容易被拉断", "C. 只能用于装饰", "D. 线迹是弯弯曲曲的"], a: 0 },
+    { q: "5. 在缝纫过程中，穿线针（Needle Threader）的作用是？", options: ["A. 保护手指不被刺伤", "B. 帮助将线穿入针孔", "C. 剪断多余的线", "D. 压平布料"], a: 1 },
+    { q: "6. 顶针（Thimble）戴在哪个部位，用来保护手指？", options: ["A. 手腕", "B. 手指头（如中指）", "C. 手掌", "D. 手臂"], a: 1 },
+
+    // 单元2：可更新能源 (7-12)
+    { q: "7. 什么是“可更新能源（Tenaga Boleh Baharu）”？", options: ["A. 用完后无法再补充的能源", "B. 可以源源不断地从自然界获取且不会枯竭的能源", "C. 会造成严重污染的能源", "D. 价格非常昂贵且稀有的能源"], a: 1 },
+    { q: "8. 以下哪项属于可更新能源的种类？", options: ["A. 石油", "B. 煤炭", "C. 太阳能（Tenaga Suria）", "D. 天然气"], a: 2 },
+    { q: "9. 水力发电（Tenaga Hidro）是利用什么来产生电力的？", options: ["A. 海水的盐分", "B. 水流的动能和势能", "C. 水蒸气的温度", "D. 雨水的重量"], a: 1 },
+    { q: "10. 生物质能（Biomas）主要来源于以下哪种物质？", options: ["A. 废弃的金属", "B. 动植物有机废弃物", "C. 塑料瓶", "D. 玻璃杯"], a: 1 },
+    { q: "11. 推广使用可更新能源的主要重要性是？", options: ["A. 增加空气污染", "B. 减少碳排放，保护地球环境", "C. 加速石油消耗", "D. 破坏生态平衡"], a: 1 },
+    { q: "12. 太阳能电池板（Solar Panel）是将太阳的光能转换为什么能？", options: ["A. 机械能", "B. 电能", "C. 声能", "D. 化学能"], a: 1 },
+
+    // 单元3：基本控制结构与算法 (13-18)
+    { q: "13. 算法中的“顺序结构（Struktur Kawalan Sekunsial）”是指什么？", options: ["A. 按照先后步骤一步一步依次执行", "B. 遇到条件判断后分岔执行", "C. 重复执行某一段动作", "D. 随机跳跃执行"], a: 0 },
+    { q: "14. 什么是“选择结构（Struktur Kawalan Pilihan）”？", options: ["A. 不管条件如何只执行一次", "B. 根据条件判断（是/否）决定执行哪一条路径", "C. 无限无限无限循环", "D. 倒序执行程序"], a: 1 },
+    { q: "15. 什么是“循环结构（Struktur Kawalan Ulangan）”？", options: ["A. 只运行一次就停止", "B. 在满足特定条件前重复执行一段程序", "C. 直接跳过程序", "D. 自动删除代码"], a: 1 },
+    { q: "16. “如果下雨就带伞，否则就不带”这属于哪种逻辑结构？", options: ["A. 顺序结构", "B. 选择结构", "C. 循环结构", "D. 混合结构"], a: 1 },
+    { q: "17. “闹钟每天早上7点重复响铃”这体现了哪种结构？", options: ["A. 顺序结构", "B. 选择结构", "C. 循环结构", "D. 无限分支"], a: 2 },
+    { q: "18. 在算法流程图中，用于判断条件的选择结构符号是？", options: ["A. 圆角矩形", "B. 平行四边形", "C. 菱形（Diamond）", "D. 长方形"], a: 2 },
+
+    // 单元4：控制器板与电子元件 (19-24)
+    { q: "19. 微控制器板（Microcontroller Board，如Micro:bit/Arduino）的作用是？", options: ["A. 仅作为电源电池", "B. 作为系统的“大脑”，按照编写的程序控制设备运行", "C. 用作外壳装饰", "D. 仅用来连接电线"], a: 1 },
+    { q: "20. 发光二极管（LED）在微控制器系统中属于什么？", options: ["A. 输入元件（Input）", "B. 输出元件（Output）", "C. 控制器主板", "D. 电源线"], a: 1 },
+    { q: "21. 蜂鸣器（Buzzer）的主要功能是发出什么？", options: ["A. 光线", "B. 声音/警报音", "C. 风力", "D. 震动"], a: 1 },
+    { q: "22. 光敏传感器（LDR Sensor）可以用来检测什么？", options: ["A. 环境光线的强弱", "B. 声音大小", "C. 温度高低", "D. 水位高低"], a: 0 },
+    { q: "23. 伺服电机（Servo Motor）可以实现什么动作？", options: ["A. 发出彩光", "B. 精确控制旋转角度（如打开闸门）", "C. 测量湿度", "D. 储存电量"], a: 1 },
+    { q: "24. 将编写好的程序下载到控制器板上，通常需要用到什么连接线？", options: ["A. USB 数据线", "B. 普通绳子", "C. 网线", "D. 高压电缆"], a: 0 },
+
+    // 单元5：储水种植系统（无土栽培/水培） (25-30)
+    { q: "25. 什么是储水种植系统（Sistem Penanaman Takungan）？", options: ["A. 每天必须人工浇水10次的系统", "B. 带有储水槽，能自动向植物根部供应水和养分的种植方式", "C. 把植物种在深海里的系统", "D. 完全不需要水的干燥种植"], a: 1 },
+    { q: "26. 储水种植系统中，水主要是以什么方向被植物根部吸收的？", options: ["A. 由上往下依靠重力", "B. 依靠毛细管作用（Capillary Action）由下往上吸收", "C. 左右水平流动", "D. 蒸发成气体后吸收"], a: 1 },
+    { q: "27. 以下哪种材料常用作无土种植的“种植介质（Medium Penanaman）”？", options: ["A. 水泥和沙子", "B. 椰糠（Cocopeat）/ 泥炭土（Peat Moss）", "C. 塑料碎片", "D. 铁粉"], a: 1 },
+    { q: "28. 以下哪项是储水种植系统（如Wick System/Capillary Mat）的重要优点？", options: ["A. 节省用水并减少日常浇水频次", "B. 植物会长得比房子还高", "C. 不需要任何阳光", "D. 完全不需要施肥"], a: 0 },
+    { q: "29. 储水种植系统中，连接水槽与种植介质并起吸水作用的通常是？", options: ["A. 棉绳/棉布条（Sumbu）", "B. 金属丝", "C. 橡皮筋", "D. 玻璃棒"], a: 0 },
+    { q: "30. 维护储水种植系统时，以下哪项做法是正确的？", options: ["A. 永远不检查储水槽的水位", "B. 定期检查水位并在养分不足时补充营养液", "C. 把植物放在完全无光无风的暗室", "D. 在水槽里倒入大量洗碗液"], a: 1 }
+];
+
+// ===== PVZ 游戏引擎逻辑 =====
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+
+let score = 0;
+let currentLevel = 0;
+let gamePaused = false;
+
+let plants = [];
+let bullets = [];
+let zombies = [];
+let spawnTimer = 0;
+
+// 初始化僵尸
+function spawnZombie() {
+    let lane = Math.floor(Math.random() * 3);
+    zombies.push({
+        x: canvas.width,
+        y: 50 + lane * 100,
+        hp: 3,
+        speed: 0.5 + currentLevel * 0.05
+    });
+}
+
+// 种植植物
+function addPlant() {
+    let lane = plants.length % 3;
+    plants.push({
+        x: 50 + Math.floor(plants.length / 3) * 70,
+        y: 50 + lane * 100,
+        shootTimer: 0
+    });
+}
+
+// 游戏主循环
+function loop() {
+    requestAnimationFrame(loop);
+
+    if (gamePaused) return;
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    // 画草坪网格
+    ctx.strokeStyle = '#27ae60';
+    for (let i = 0; i < 3; i++) {
+        ctx.fillStyle = i % 2 === 0 ? '#2ecc71' : '#27ae60';
+        ctx.fillRect(0, 30 + i * 100, canvas.width, 90);
+    }
+
+    // 绘制植物
+    plants.forEach((p) => {
+        ctx.fillStyle = '#f1c40f'; // 葵花/豌豆头像
+        ctx.beginPath();
+        ctx.arc(p.x + 25, p.y + 40, 20, 0, Math.PI * 2);
+        ctx.fill();
+        ctx.fillStyle = '#2c3e50';
+        ctx.fillText("🌻", p.x + 15, p.y + 45);
+
+        // 发射子弹
+        p.shootTimer++;
+        if (p.shootTimer > 90) {
+            bullets.push({ x: p.x + 40, y: p.y + 40, speed: 4 });
+            p.shootTimer = 0;
+        }
+    });
+
+    // 绘制并移动子弹
+    bullets.forEach((b, index) => {
+        b.x += b.speed;
+        ctx.fillStyle = '#2ecc71';
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 6, 0, Math.PI * 2);
+        ctx.fill();
+
+        if (b.x > canvas.width) bullets.splice(index, 1);
+    });
+
+    // 生成与移动僵尸
+    spawnTimer++;
+    if (spawnTimer > 180) {
+        spawnZombie();
+        spawnTimer = 0;
+    }
+
+    zombies.forEach((z, zIndex) => {
+        z.x -= z.speed;
+
+        // 画僵尸
+        ctx.fillStyle = '#e74c3c';
+        ctx.fillRect(z.x, z.y + 15, 30, 50);
+        ctx.fillStyle = '#fff';
+        ctx.fillText("🧟", z.x + 5, z.y + 45);
+
+        // 检测子弹击中
+        bullets.forEach((b, bIndex) => {
+            if (Math.abs(b.x - z.x) < 20 && Math.abs(b.y - (z.y + 40)) < 20) {
+                z.hp--;
+                bullets.splice(bIndex, 1);
+                if (z.hp <= 0) {
+                    zombies.splice(zIndex, 1);
+                }
+            }
+        });
+
+        // 僵尸突破防御线
+        if (z.x < 10) {
+            alert("⚠️ 僵尸突破了防线！重新准备防守吧！");
+            resetGame();
+        }
+    });
+}
+
+function resetGame() {
+    plants = [];
+    bullets = [];
+    zombies = [];
+    score = 0;
+    currentLevel = 0;
+    document.getElementById("score").innerText = score;
+    document.getElementById("level").innerText = 1;
+}
+
+// ===== 答题触发逻辑 =====
+function triggerQuiz() {
+    if (currentLevel >= questions.length) {
+        alert("🏆 恭喜！你已经通关所有五年级 RBT 复习题目，成功保卫了植物园！");
+        resetGame();
+        return;
+    }
+
+    gamePaused = true;
+    const modal = document.getElementById("quizModal");
+    const qData = questions[currentLevel];
+    
+    document.getElementById("questionText").innerText = qData.q;
+    document.getElementById("feedbackText").innerText = "";
+    
+    const optionsContainer = document.getElementById("optionsContainer");
+    optionsContainer.innerHTML = "";
+
+    qData.options.forEach((opt, index) => {
+        const btn = document.createElement("button");
+        btn.className = "option-btn";
+        btn.innerText = opt;
+        btn.onclick = () => checkAnswer(index, qData.a);
+        optionsContainer.appendChild(btn);
+    });
+
+    modal.style.display = "flex";
+}
+
+function checkAnswer(selected, correct) {
+    const feedback = document.getElementById("feedbackText");
+    if (selected === correct) {
+        feedback.style.color = "#2ecc71";
+        feedback.innerText = "🎉 答对了！成功获取阳光并召唤植物！";
+        score += 10;
+        document.getElementById("score").innerText = score;
+        addPlant();
+
+        setTimeout(() => {
+            document.getElementById("quizModal").style.display = "none";
+            currentLevel++;
+            if (currentLevel < questions.length) {
+                document.getElementById("level").innerText = currentLevel + 1;
+            }
+            gamePaused = false;
+        }, 1000);
+    } else {
+        feedback.style.color = "#e74c3c";
+        feedback.innerText = "❌ 答错了，请仔细思考后再试！";
+    }
+}
+
+// 启动游戏
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
